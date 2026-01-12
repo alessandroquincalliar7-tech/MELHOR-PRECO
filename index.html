@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>MENOR PREÇO • Passagens & Produtos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .card{margin-bottom:15px}
+    .preco{color:#28a745;font-weight:700;font-size:1.3rem}
+    .badge-local{position:absolute;top:8px;right:8px}
+  </style>
+</head>
+<body class="bg-light">
+  <nav class="navbar navbar-dark bg-dark">
+    <div class="container">
+      <span class="navbar-brand mb-0 h1">🔍 MENOR PREÇO</span>
+    </div>
+  </nav>
+
+  <div class="container my-4">
+    <div class="row">
+      <div class="col-md-6">
+        <h4>✈ Passagens</h4>
+        <form id="flightForm" class="mb-3">
+          <div class="input-group">
+            <input type="text" id="from" class="form-control" placeholder="Origem (ex: GRU)" required>
+            <input type="text" id="to" class="form-control" placeholder="Destino (ex: MIA)" required>
+            <input type="date" id="depart" class="form-control" required>
+            <button class="btn btn-primary">Buscar</button>
+          </div>
+        </form>
+        <div id="flightList" class="list-group"></div>
+      </div>
+
+      <div class="col-md-6">
+        <h4>📦 Produtos</h4>
+        <form id="prodForm" class="mb-3">
+          <div class="input-group">
+            <input type="text" id="query" class="form-control" placeholder="O que você quer?">
+            <button class="btn btn-primary">Buscar</button>
+          </div>
+        </form>
+        <div id="prodList" class="list-group"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ----------  CONFIGURAÇÕES  ---------- */
+const RAPID_KEY = 'COLOQUE-AQUI-SUA-CHAVE-RAPIDAPI';  // https://rapidapi.com/skyscanner/api/skyscanner-flight-search
+const ML_URL    = 'https://api.mercadolibre.com/sites/MLB/search?q=';
+
+/* ----------  PASSAGENS  ---------- */
+document.getElementById('flightForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const f=document.getElementById('from').value,
+        t=document.getElementById('to').value,
+        d=document.getElementById('depart').value;
+  const url=`https://skyscanner-skyscanner-flight-search-v1.p.rapidapi.com/apiservices/browseroutes/v1.0/BR/BRL/pt-BR/${f}/${t}/${d}?inboundpartialdate=`;
+  const res = await fetch(url,{headers:{'x-rapidapi-key':RAPID_KEY,'x-rapidapi-host':'skyscanner-skyscanner-flight-search-v1.p.rapidapi.com'}});
+  const data = await res.json();
+  const container=document.getElementById('flightList'); container.innerHTML='';
+  if(!data.Quotes){container.innerHTML='<p class="text-muted">Nada encontrado.</p>';return;}
+  // ordena menor preço
+  data.Quotes.sort((a,b)=>a.MinPrice-b.MinPrice);
+  data.Quotes.forEach(q=>{
+     const carrier = data.Carriers.find(c=>c.CarrierId===q.OutboundLeg.CarrierIds[0]);
+     container.innerHTML+=`
+      <div class="card position-relative">
+        <span class="badge bg-primary badge-local">SKY</span>
+        <div class="card-body">
+          <h6 class="card-title">${f} → ${t}</h6>
+          <p class="preco">R$ ${q.MinPrice.toFixed(2).replace('.',',')}</p>
+          <small class="text-muted">${carrier?carrier.Name:'Desconhecida'} • ${q.QuoteDateTime.slice(0,10)}</small>
+        </div>
+      </div>`;
+  });
+});
+
+/* ----------  PRODUTOS  ---------- */
+document.getElementById('prodForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const q=document.getElementById('query').value;
+  const res = await fetch(ML_URL+encodeURIComponent(q));
+  const data = await res.json();
+  const container=document.getElementById('prodList'); container.innerHTML='';
+  if(!data.results.length){container.innerHTML='<p class="text-muted">Nada encontrado.</p>';return;}
+  // ordena menor preço
+  data.results.sort((a,b)=>a.price-b.price);
+  data.results.slice(0,15).forEach(p=>{
+     container.innerHTML+=`
+      <div class="card position-relative">
+        <span class="badge bg-warning badge-local">ML</span>
+        <div class="row g-0">
+          <div class="col-4"><img src="${p.thumbnail}" class="img-fluid rounded-start"></div>
+          <div class="col-8">
+            <div class="card-body py-2">
+              <h6 class="card-title mb-1">${p.title}</h6>
+              <p class="preco mb-1">R$ ${p.price.toFixed(2).replace('.',',')}</p>
+              <small class="text-muted">${p.seller.nickname} • ${p.condition=='new'?'Novo':'Usado'}</small>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  });
+});
+</script>
+</body>
+</html>
+
